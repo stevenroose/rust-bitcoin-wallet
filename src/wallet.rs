@@ -59,6 +59,7 @@ pub struct Wallet {
 	last_known_block: Option<KnownBlock>,
 
 	// history
+	#[serde(skip)]
 	tx_history: Vec<Transaction>, //TODO(stevenroose) consider hashmap
 }
 
@@ -172,21 +173,33 @@ impl Wallet {
 		}
 	}
 
-	pub fn process_block(&mut self, block: &Block, height: u32) -> Result<()> {
-		// Ensure the block follows on the last known block.
-		if let Some(ref last_block) = self.last_known_block {
-			if block.header.prev_blockhash != last_block.hash || height != last_block.height + 1 {
-				//TODO(stevenroose) implement reorg logic
-				return Err(Error::BlockFork);
-			}
+	/// Use this only when you know what you are doing. This might make the wallet lose track of
+	/// some of its own UTXOs.
+	pub fn set_last_block(&mut self, block_hash: sha256d::Hash, height: u32) {
+		self.last_known_block = Some(KnownBlock {
+			hash: block_hash,
+			height: height,
+		});
+	}
+
+	pub fn process_block(&mut self, block: &Block) -> Result<()> {
+		if self.last_known_block.is_none() {
+			return Err(Error::WalletNotFullyInitialized);
 		}
 
+		// Ensure the block follows on the last known block.
+		if block.header.prev_blockhash != self.last_known_block.as_ref().unwrap().hash {
+			//TODO(stevenroose) implement reorg logic
+			return Err(Error::BlockFork);
+		}
+		let new_height = self.last_known_block.as_ref().unwrap().height + 1;
+
 		for tx in &block.txdata {
-			self.process_transaction(&tx, height)
+			self.process_transaction(&tx, new_height)
 		}
 
 		self.last_known_block = Some(KnownBlock {
-			height: height,
+			height: new_height,
 			hash: block.bitcoin_hash(),
 		});
 
@@ -195,12 +208,12 @@ impl Wallet {
 
 	pub fn get_balance(&self, minimum_confirmations: Option<u32>) -> u64 {
 		let current_height = self.last_known_block.as_ref().map(|b| b.height).unwrap_or(0);
-		let min_height = match minimum_confirmations {
+		let max_height = match minimum_confirmations {
 			None => current_height,
 			Some(minconf) => current_height.checked_sub(minconf).unwrap_or(0) + 1,
 		};
 		let confirmed =
-			self.owned_utxos.values().filter(|u| u.height >= min_height).map(|u| u.value).sum();
+			self.owned_utxos.values().filter(|u| u.height <= max_height).map(|u| u.value).sum();
 		//TODO(stevenroose) unconfirmed
 		confirmed
 	}
@@ -319,12 +332,11 @@ impl Wallet {
 			psbt_outputs[idx].hd_keypaths.insert(pubkey, (self.master_fp, path));
 		}
 
-		// Create the unsigned tx.  Shuffle inputs and outputs.
+		// Create the unsigned tx.
 		let tx = Transaction {
 			version: 1,
-			lock_time: 0, //TODO(stevenroose)
+			lock_time: 0,
 			input: inputs,
-
 			output: outputs,
 		};
 

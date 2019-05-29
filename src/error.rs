@@ -13,6 +13,7 @@ pub enum Error {
 	UtxoNotInWallet,
 	DuplicateUtxo,
 	InsufficientFunds,
+	WalletNotFullyInitialized,
 }
 
 impl fmt::Display for Error {
@@ -43,6 +44,7 @@ impl error::Error for Error {
 			Error::UtxoNotInWallet => "a UTXO was used that is not part of the wallet",
 			Error::DuplicateUtxo => "a UTXO has been provided more than once",
 			Error::InsufficientFunds => "not enough funds to fund the given transaction",
+			Error::WalletNotFullyInitialized => "the wallet is not fully initialized yet",
         }
     }
 }

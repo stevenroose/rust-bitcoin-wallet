@@ -28,3 +28,9 @@ bitcoinconsensus = { version = "0.16", optional = true }
 
 [patch."crates-io"]
 bitcoin = { path = "/home/steven/code/rust/bitcoin" }
+
+[dev-dependencies]
+base64 = "0.10.1"
+bitcoincore-rpc = "0.6"
+hex = "0.3.2"
+serde_json = "1"
