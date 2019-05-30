@@ -54,12 +54,6 @@ fn init_wallet() -> (bip32::ExtendedPrivKey, Wallet) {
 	(xpriv, wallet)
 }
 
-fn dump_wallet(wallet: &Wallet) {
-	println!("--------------------");
-	serde_json::to_writer_pretty(io::stdout(), wallet).expect("dump_wallet error");
-	println!("--------------------");
-}
-
 fn generate(bitcoind: &bitcoincore_rpc::Client) -> Block {
 	let generate_addr = bitcoind.get_new_address(None, None).expect("RPR");
 	let block_hashes = bitcoind.generate_to_address(1, &generate_addr).expect("RPC");
@@ -73,25 +67,25 @@ fn main() {
 	let (xpriv, mut wallet) = init_wallet();
 
 	println!("initial wallet");
-	dump_wallet(&wallet);
+	println!("{:?}", wallet);
 
 	// add the tip as first block
 	let blockchain_info = bitcoind.get_blockchain_info().expect("RPC");
 	wallet.set_last_block(blockchain_info.bestblockhash, blockchain_info.blocks as u32);
 
 	println!("wallet ready");
-	dump_wallet(&wallet);
+	println!("{:?}", wallet);
 
 	// receive some txs
 	for _ in 0..5 {
 		let addr = wallet.new_receive_address();
 		bitcoind.send_to_address(&addr, 1.0, None, None, None, None, None, None).expect("RPC");
 		let block = generate(&bitcoind);
-		wallet.process_block(&block);
+		wallet.process_block(&block).expect("process block");
 	}
 
 	println!("wallet finaly");
-	dump_wallet(&wallet);
+	println!("{:?}", wallet);
 	println!("balance: {}", wallet.get_balance(None));
 	assert_eq!(wallet.get_balance(None), 500000000);
 
