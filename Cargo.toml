@@ -15,7 +15,8 @@ name = "bitcoin_wallet"
 path = "src/lib.rs"
 
 [dependencies]
-bitcoin = { version = "0.18", features = [ "use-serde" ] }
+#bitcoin = { version = "0.18", features = [ "use-serde" ] }
+bitcoin = { git = "git://github.com/rust-bitcoin/rust-bitcoin.git", branch = "master", features = [ "use-serde" ] }
 bitcoin_hashes = { version = "0.3", features = [ "serde" ] }
 byteorder = "1.2"
 hex = "=0.3.2"
@@ -25,9 +26,6 @@ secp256k1 = { version = "0.12", features = [ "rand" ] }
 serde = { version = "1", features = [ "derive" ] }
 
 bitcoinconsensus = { version = "0.16", optional = true }
-
-[patch."crates-io"]
-bitcoin = { path = "/home/steven/code/rust/bitcoin" }
 
 [dev-dependencies]
 base64 = "0.10.1"
