@@ -1,5 +1,5 @@
-use std::{collections, fmt};
 use std::collections::{HashMap, HashSet};
+use std::{collections, fmt};
 
 use bitcoin::util::{bip32, psbt};
 use bitcoin::{Address, BitcoinHash, Block, OutPoint, Script, Transaction, TxIn, TxOut};
@@ -365,7 +365,7 @@ impl Wallet {
 				..Default::default()
 			});
 		}
-		drop(in_utxos);
+
 		// PSBT output for change.
 		let mut psbt_outputs: Vec<psbt::Output> = vec![Default::default(); outputs.len()];
 		if let Some(idx) = change_idx {
@@ -406,7 +406,13 @@ impl Wallet {
 	) -> Result<psbt::PartiallySignedTransaction> {
 		let change_child = self.next_address_child();
 		let (psbt, change_idx) =
-			self.create_transaction_with_change(outputs, use_inputs, change_child, fee)?;
+			match self.create_transaction_with_change(outputs, use_inputs, change_child, fee) {
+				Ok(res) => res,
+				Err(e) => {
+					self.rollback_address_child();
+					return Err(e);
+				}
+			};
 		if change_idx.is_none() {
 			self.rollback_address_child();
 		}
